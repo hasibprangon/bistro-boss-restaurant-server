@@ -4,10 +4,24 @@ const cors = require('cors');
 const port = process.env.PORT || 5000;
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
 
 // middleware
 app.use(cors());
 app.use(express.json());
+const verifyToken = (req, res, next) => {
+    if(!req.headers?.authorization){
+        return res.status(401).send({message: 'forbidden access'})
+    }
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if(err){
+            return res.status(401).send({message: 'forbidden access'})
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.f7tqe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -31,16 +45,24 @@ async function run() {
         const cartCollection = client.db("restaurantDb").collection("carts");
         const userCollection = client.db("restaurantDb").collection("users");
 
+        // jwt related api
+        app.post('/jwt', async(req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '5h' });
+            res.send({ token });
+        });
+        
+
         // users related api
 
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyToken, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         });
 
-        app.patch('/user/admin/:id', async (req, res) => {
+        app.patch('/users/:id', async (req, res) => {
             const id = req.params.id;
-            const filter = {_id: new ObjectId(id)};
+            const filter = { _id: new ObjectId(id) };
             const updatedDoc = {
                 $set: {
                     role: 'admin'
