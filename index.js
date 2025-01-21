@@ -46,17 +46,17 @@ async function run() {
         const verifyToken = (req, res, next) => {
             console.log('inside verify token', req.headers.authorization);
             if (!req.headers.authorization) {
-              return res.status(401).send({ message: 'unauthorized access' });
+                return res.status(401).send({ message: 'unauthorized access' });
             }
             const token = req.headers.authorization.split(' ')[1];
             jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-              if (err) {
-                return res.status(401).send({ message: 'unauthorized access' })
-              }
-              req.decoded = decoded;
-              next();
+                if (err) {
+                    return res.status(401).send({ message: 'unauthorized access' })
+                }
+                req.decoded = decoded;
+                next();
             })
-          }
+        }
 
 
         // use verify admin after verify Token
@@ -67,10 +67,10 @@ async function run() {
             const user = await userCollection.findOne(query);
             const isAdmin = user?.role === 'admin';
             if (!isAdmin) {
-              return res.status(403).send({ message: 'forbidden access' });
+                return res.status(403).send({ message: 'forbidden access' });
             }
             next();
-          }
+        }
 
 
         // users related api
@@ -132,6 +132,14 @@ async function run() {
             res.send(result);
         });
 
+        app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
+            const item = req?.body;
+            const result = await menuCollection.insertOne(item);
+            res?.send(result);
+        })
+
+
+        // review related api
         app.get('/reviews', async (req, res) => {
             const result = await reviewsCollection.find().toArray();
             res.send(result);
